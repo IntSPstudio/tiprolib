@@ -1,7 +1,7 @@
 #|==============================================================|#
 # Made by IntSPstudio
 # Thank you for using this plugin!
-# Version: 0.0.0.110204
+# Version: 0.0.0.110304
 # ID: 980001022
 #|==============================================================|#
 
@@ -31,6 +31,7 @@ def initialize():
         manufacturer TEXT,
         name TEXT,
         qty_value INTEGER,
+        qty_default INTEGER,
         qty_unit TEXT,
         info TEXT,
         note TEXT,
@@ -82,15 +83,20 @@ def generate_internal_gtin(conn):
 def get_table(conn, name, mode):
     cursor = conn.cursor()
     allowed_tables = ["products", "price_history"]
+
     if name not in allowed_tables:
         logger("Invalid table")
         return
+
     cursor.execute("SELECT * FROM " + name)
     headers = [col[0] for col in cursor.description]
+
     rows = cursor.fetchall()
+
     if not rows:
         logger("Error")
         return
+
     return headers, rows
 
 def create_product(conn, mode, content):
@@ -131,11 +137,19 @@ def create_product(conn, mode, content):
     logger("Product created")
 def update_product_field(conn, gtin, field, value):
     cursor = conn.cursor()
-    
+    now = currentdatetime()
+
+    if field == "qty":
+        field = "qty_value"
+    elif field == "qtyu":
+        field = "qty_unit"
+    elif field == "qtyd":
+        field = "qty_default"
+
     allowed_fields = [
         "gtin_type", "code", "brand", "manufacturer", "name",
-        "qty_value", "qty_unit", "info", "note", "madein",
-        "status", "updated", "additionalinfo"
+        "qty_value", "qty_default", "qty_unit", "info", "note", "madein",
+        "additionalinfo", "status"
     ]
     
     if field not in allowed_fields:
@@ -146,6 +160,7 @@ def update_product_field(conn, gtin, field, value):
     
     with conn:
         cursor.execute(f"UPDATE products SET {field}=? WHERE gtin=?", (value, gtin))
+        cursor.execute("UPDATE products SET updated=? WHERE gtin=?", (now, gtin))
     
     logger(f"Updated {field} for GTIN {gtin} to {value}")
 
@@ -155,6 +170,7 @@ def status_product(conn, pid):
         "SELECT status FROM products WHERE id=?",
         (pid,)
     )
+    now = currentdatetime()
     row = cursor.fetchone()
     if not row:
         logger("Product not found")
@@ -168,10 +184,8 @@ def status_product(conn, pid):
         row = "active"
 
     with conn:
-        cursor.execute(
-        "UPDATE products SET status=? WHERE id=?",
-        (row, pid)
-        )
+        cursor.execute("UPDATE products SET status=? WHERE id=?",(row, pid))
+        cursor.execute("UPDATE products SET updated=? WHERE id=?",(now, pid))
     output = "New status:"+ row
     logger(output)
 
@@ -197,6 +211,7 @@ def get_product(conn, gtin, field):
             "Manufacturer": row["manufacturer"],
             "Name": row["name"],
             "Qty ": row["qty_value"],
+            "Qty default value": row["qty_default"],
             "Qty unit": row["qty_unit"],
             "Info": row["info"],
             "Note": row["note"],
@@ -208,9 +223,16 @@ def get_product(conn, gtin, field):
         results = master | additional
         return results
     else:
+        if field == "qty":
+            field = "qty_value"
+        elif field == "qtyu":
+            field = "qty_unit"
+        elif field == "qtyd":
+            field = "qty_default"
+
         allowed_fields = [
             "gtin_type", "code", "brand", "manufacturer", "name",
-            "qty_value", "qty_unit", "info", "note", "madein",
+            "qty_value", "qty_default", "qty_unit", "info", "note", "madein",
             "status", "updated", "additionalinfo"
         ]
         if field not in allowed_fields:
@@ -311,7 +333,8 @@ if __name__ == "__main__":
     #TB
     try:
         if len(sys.argv) < 2:
-            print("=]             *** Welcome! Available commands ***")
+            print("=]")
+            print("=]            *** Welcome! Available commands ***")
             print("=]")
             print("=]  create                  | Create product to database")
             print("=]  products                | Show all products from database")
@@ -321,6 +344,7 @@ if __name__ == "__main__":
             print("=]  price GTIN VALUE        | Add price history")
             print("=]  history GTIN            | Show price history")
             print("=]  extra ID                | Add additional info")
+            print("=]")
             conn.close()
             sys.exit()
         cmd = sys.argv[1]
@@ -350,6 +374,15 @@ if __name__ == "__main__":
             price_history(conn, sys.argv[2])
         elif cmd == "extra":
             add_additional(conn, sys.argv[2])
+        elif cmd == "help":
+            if sys.argv[2] == "get" or sys.argv[2] == "update":
+                print("=]")
+                print("=]            *** OPTIONS ***")
+                print("=]")
+                print("=] gtin_type, code, brand, manufacturer, name, ")
+                print("=] qty_value (or qty), qty_default (or qtyd), qty_unit (or qtu)")
+                print("=] info, note, madein, status, updated, additionalinfo")
+                print("=]")
         #TC
         logger("stop")
         print()
