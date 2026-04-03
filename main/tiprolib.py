@@ -1,7 +1,7 @@
 #|==============================================================|#
 # Made by IntSPstudio
 # Thank you for using this plugin!
-# Version: 0.0.0.110304
+# Version: 0.0.1.110304
 # ID: 980001022
 #|==============================================================|#
 
@@ -9,16 +9,18 @@
 import sqlite3
 import json
 import sys
+from os import get_terminal_size as cli_size
 import random
+import re
 from datetime import datetime
 #SETTINGS
 log =[]
 results ={}
 demo =1
 
-def initialize():
-    DB = "products.db"
-    conn = sqlite3.connect(DB)
+#START THINGS
+def initialize(db_path="products.db"):
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("""
@@ -33,6 +35,7 @@ def initialize():
         qty_value INTEGER,
         qty_default INTEGER,
         qty_unit TEXT,
+        category TEXT,
         info TEXT,
         note TEXT,
         madein TEXT,
@@ -48,84 +51,97 @@ def initialize():
         product_id INTEGER,
         price REAL,
         currency TEXT,
-        date TEXT
+        place TEXT,
+        date DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
     conn.commit()
     return conn
 
-def currentdatetime():
-    now = str(datetime.now().isoformat("#", "auto"))
-    now = now.replace("-",".")
-    now = now.replace("#", "-")
+#DEFAULT TYPE FOR DATE AND TIME
+def currentdatetime(mode =0):
+    if mode == 0:
+        now = str(datetime.now().isoformat("#", "auto"))
+        now = now.replace("-",".")
+        now = now.replace("#", "-")
+    if mode == 1:
+        now = str(datetime.now().strftime("%Y.%m.%d %H:%M:%S"))
     return now
 
-def logger(input):
-    now = currentdatetime()
-    output = now + " ; " + input
-    log.append(output)
+#SYSTEM LOGGER
+def logger(msg):
+    log.append(f"{currentdatetime()} ; {msg}")
 
+#REMOVE SPECIAL CHARAGTERS
+def boring_text(input, mode):
+    if mode == 0:
+        return str("").join(i for i in input if i.isalnum())
+    elif mode == 1:
+        return re.sub(r"[^a-zA-Z0-9_-.,!# ]", "", input)
+    
+#DEFAULT COMMAND LINE TABLE PRINT
 def print_table(headers, rows):
+    output =[]
     data = [headers] + rows
     widths = [max(len(str(row[i])) for row in data) for i in range(len(headers))]
+    #DATA
     for row in data:
-        line = " | ".join(str(row[i]).ljust(widths[i]) for i in range(len(row)))
+        line = "=] "+ " | ".join(str(row[i]).ljust(widths[i]) for i in range(len(row)))
         line = line.replace("None", "    ")
-        print(line)
-
+        output.append(line)
+    #PRINT / RETURN
+    if demo == 1:
+        print("=]")
+        for i in output:
+            #CHECK SCREEN SIZE
+            max_width = cli_size().columns
+            if len(i) > max_width:
+                i = i[:max_width]
+            print(i)
+        print("=]")
+    else:
+        return output
+#IF GTIN = EMPTY -> GENERETED CODE
 def generate_internal_gtin(conn):
     cursor = conn.cursor()
-    while True:
+    while True: #CHECK FOR NEW ID
         code = str(random.randint(1000000000, 9999999999))
         cursor.execute("SELECT gtin FROM products WHERE gtin=?", (code,))
         if not cursor.fetchone():
             return code
+#GET TABLE
 def get_table(conn, name, mode):
     cursor = conn.cursor()
     allowed_tables = ["products", "price_history"]
-
+    #RULES
     if name not in allowed_tables:
         logger("Invalid table")
         return
-
     cursor.execute("SELECT * FROM " + name)
     headers = [col[0] for col in cursor.description]
-
     rows = cursor.fetchall()
-
+    #MORE RULES
     if not rows:
         logger("Error")
         return
-
     return headers, rows
 
-def create_product(conn, mode, content):
+#CREATE PRODUCT
+def create_product(conn, gtin="", gtin_type="", brand=None, name=None, additional={}):
     cursor = conn.cursor()
     now = currentdatetime()
-    if mode == 0:
-        gtin = input("GTIN: ")
-    elif mode == 1:
-        gtin = content[0]
-    gtin = gtin.replace(" ", "")
-    if gtin == "":
+
+    gtin = boring_text(gtin,0) #REMOVE UNWANTED CHARACTERS
+    gtin_type = boring_text(gtin_type,0) #REMOVE UNWANTED CHARACTERS
+
+    if not gtin: #GENERATED GTIN ID
         gtin = generate_internal_gtin(conn)
         gtin_type = "internal"
-        output = "Generated GTIN:"+ str(gtin)
-        logger(output)
+        logger("Generated GTIN")
     else:
-        if mode == 0:
-            gtin_type = input("GTIN type: ")
-        elif mode == 1:
-            gtin_type = content[1]
         gtin_type = gtin_type.lower()
-    if mode == 0:
-        brand = input("Brand: ")
-        name = input("Name: ")
-        additional = {}
-    elif mode == 1:
-        brand = content[2]
-        name = content[3]
-        additional = content[4]
+    if not gtin_type:
+        gtin_type = None
 
     with conn:
         cursor.execute("""
@@ -134,36 +150,49 @@ def create_product(conn, mode, content):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (gtin, gtin_type, brand, name, "active", now, now, json.dumps(additional)))
 
-    logger("Product created")
-def update_product_field(conn, gtin, field, value):
+    logger(f"Product created: {gtin} {gtin_type}")
+    return gtin
+
+#UPDATE PRODUCT FIELDS DATA
+def update_product(conn, gtin, **fields):
     cursor = conn.cursor()
     now = currentdatetime()
-
-    if field == "qty":
-        field = "qty_value"
-    elif field == "qtyu":
-        field = "qty_unit"
-    elif field == "qtyd":
-        field = "qty_default"
-
-    allowed_fields = [
+    #RULES
+    field_alias = {
+        "qty": "qty_value",
+        "qtyu": "qty_unit",
+        "qtyd": "qty_default",
+        "cat": "category"
+    }
+    allowed_fields = {
         "gtin_type", "code", "brand", "manufacturer", "name",
-        "qty_value", "qty_default", "qty_unit", "info", "note", "madein",
-        "additionalinfo", "status"
-    ]
-    
-    if field not in allowed_fields:
-        logger("Error: field not allowed")
+        "qty_value", "qty_default", "qty_unit", "info", "note",
+        "madein", "additionalinfo", "status"
+    }
+    updates = []
+    values = []
+    #MORE RULES
+    for field, value in fields.items():
+        field = field_alias.get(field, field)
+        if field not in allowed_fields:
+            logger(f"Error: field not allowed -> {field}")
+            continue
+        updates.append(f"{field}=?")
+        values.append(value)
+    #EVEN MORE RULES
+    if not updates:
+        logger("Error: no valid fields to update")
         return
-    
-    gtin = gtin.replace(" ", "")
-    
+    #UPDATE
+    updates.append("updated=?")
+    values.append(now)
+    values.append(gtin)
+    sql = f"UPDATE products SET {', '.join(updates)} WHERE gtin=?"
     with conn:
-        cursor.execute(f"UPDATE products SET {field}=? WHERE gtin=?", (value, gtin))
-        cursor.execute("UPDATE products SET updated=? WHERE gtin=?", (now, gtin))
-    
-    logger(f"Updated {field} for GTIN {gtin} to {value}")
+        cursor.execute(sql, values)
+    logger(f"Updated product {gtin}")
 
+#CHANGE PRODUCT STATUS (ACTIVE / PASSIVE)
 def status_product(conn, pid):
     cursor = conn.cursor()
     cursor.execute(
@@ -175,122 +204,121 @@ def status_product(conn, pid):
     if not row:
         logger("Product not found")
         return
-    row = ''.join(char for char in row if char.isalpha())
+    row = boring_text(row)
     output = "Old status:"+ row
     logger(output)
     if row == "active":
         row = "passive"
     else:
         row = "active"
-
     with conn:
-        cursor.execute("UPDATE products SET status=? WHERE id=?",(row, pid))
-        cursor.execute("UPDATE products SET updated=? WHERE id=?",(now, pid))
+        cursor.execute(
+            "UPDATE products SET status=?, updated=? WHERE id=?",
+            (row, now, pid)
+        )
     output = "New status:"+ row
     logger(output)
 
-def get_product(conn, gtin, field):
+#GET PRODUCT DATA
+def get_product(conn, gtin, field =""):
     cursor = conn.cursor()
-    gtin = gtin.replace(" ", "")
-    cursor.execute(
-        "SELECT * FROM products WHERE gtin=?",
-        (gtin,)
-    )
+    cursor.execute("SELECT * FROM products WHERE gtin=?", (gtin,))
     row = cursor.fetchone()
     if not row:
         logger("Product not found")
-        return
+        return None
+    #GET ALL DATA
     if field == "":
-        additional = json.loads(row["additionalinfo"])
-        master = {
-            "ID": row["id"],
-            "Gtin": row["gtin"],
-            "Gtin type": row["gtin_type"],
-            "Code": row["code"],
-            "Brand": row["brand"],
-            "Manufacturer": row["manufacturer"],
-            "Name": row["name"],
-            "Qty ": row["qty_value"],
-            "Qty default value": row["qty_default"],
-            "Qty unit": row["qty_unit"],
-            "Info": row["info"],
-            "Note": row["note"],
-            "Made in": row["madein"],
-            "Status": row["status"],
-            "Created": row["created"],
-            "Updated": row["updated"],
-        }
-        results = master | additional
-        return results
+        #additional = json.loads(row["additionalinfo"] or "{}")
+        product = dict(row)
+        #product.update(additional)
+        return product
+    #GET SPECIFIG DATA
     else:
-        if field == "qty":
-            field = "qty_value"
-        elif field == "qtyu":
-            field = "qty_unit"
-        elif field == "qtyd":
-            field = "qty_default"
-
-        allowed_fields = [
+        #RULES
+        field_alias = {
+            "qty": "qty_value",
+            "qtyu": "qty_unit",
+            "qtyd": "qty_default",
+            "cat": "category"
+        }
+        allowed_fields = {
             "gtin_type", "code", "brand", "manufacturer", "name",
-            "qty_value", "qty_default", "qty_unit", "info", "note", "madein",
-            "status", "updated", "additionalinfo"
-        ]
+            "qty_value", "qty_default", "qty_unit", "info", "note",
+            "madein", "additionalinfo", "status"
+        }
+        field = field_alias.get(field, field)
         if field not in allowed_fields:
-                logger("Error: field not allowed")
-                return
-        output ={field: row[field]}
-        return output
-
-def add_price(conn, gtin, price):
+            logger(f"Error: field not allowed -> {field}")
+            return
+        #DATA
+        product = dict(row)
+        for i in product:
+            if i == field:
+                output = {i : product[i]}
+                return output
+            
+#ADD NEW PRICE TO PRODUCT PRICE HISTORY
+def add_price(conn, gtin, price, currency ="EUR", place =None):
     cursor = conn.cursor()
-
     gtin = gtin.replace(" ","")
     if gtin !="":
         try:
-            price = price.replace(",",".")
-            price = float(price)
+            price = float(str(price).replace(",", "."))
             cursor.execute(
                 "SELECT id FROM products WHERE gtin=?",
                 (gtin,)
             )
             row = cursor.fetchone()
+            
             if not row:
                 logger("Product not found")
                 return
-            product_id = row[0]
-            cursor.execute("""
-            INSERT INTO price_history
-            (product_id, price, currency, date)
-            VALUES (?, ?, ?, ?)
-            """, (product_id, price, "EUR", currentdatetime()))
-            conn.commit()
+            product_id = int(row[0])
+
+            with conn:
+                cursor.execute("""
+                INSERT INTO price_history
+                (product_id, price, currency, place, date)
+                VALUES (?, ?, ?, ?, ?)
+                """, (product_id, price, currency, place, currentdatetime(1)))
             logger("Price added")
         except ValueError:
             logger("Invalid price")
     else:
         logger("No gtin code")
 
+#GET PRODUCT PRICE HISTORY DATA
 def price_history(conn, gtin):
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id FROM products WHERE gtin=?",
-        (gtin,)
-    )
-    row = cursor.fetchone()
-    if not row:
-        logger("Product not found")
-        return
-    product_id = row[0]
-    cursor.execute("""
-    SELECT price, currency, date
-    FROM price_history
-    WHERE product_id=?
-    ORDER BY date DESC
-    """, (product_id,))
-    for r in cursor.fetchall():
-        if demo == 1:
-            print(r[2], "|", r[0], r[1])
+    gtin = gtin.replace(" ","")
+    if gtin:
+        #GET ID
+        cursor.execute(
+            "SELECT id FROM products WHERE gtin=?",
+            (gtin,)
+        )
+        #RULES
+        row = cursor.fetchone()
+        if not row:
+            logger("Product not found")
+            return
+        product_id = row[0]
+        #GET DATA
+        cursor.execute("""
+        SELECT price, currency, date, place
+        FROM price_history
+        WHERE product_id=?
+        ORDER BY date DESC
+        """, (product_id,))
+        #MODIFY
+        headers = [col[0] for col in cursor.description]
+        rows = cursor.fetchall()
+        return headers, rows
+    else:
+        logger("No gtin code")
 
+#ADD JSON DATA TO PRODUCT DATABASE
 def add_additional(conn, pid):
     cursor = conn.cursor()
     cursor.execute(
@@ -314,20 +342,10 @@ def add_additional(conn, pid):
     output = "Additional info updated to ID:" + str(pid)
     logger(output)
 
-def search_volume(conn, volume):
-    cursor = conn.cursor()
-    cursor.execute("""
-    SELECT gtin, name
-    FROM products
-    WHERE json_extract(additionalinfo, '$.volume_ml') = ?
-    """, (volume,))
-    for r in cursor.fetchall():
-        if demo == 1:
-            print(r[0], "|", r[1])
-
+#IF THIS PLUGIN IS STARTED LIKE SOFTWARE
 if __name__ == "__main__":
     #TA
-    logger("start")
+    logger("Start")
     results ={}
     conn = initialize()
     #TB
@@ -341,18 +359,31 @@ if __name__ == "__main__":
             print("=]  update GTIN FIELD VALUE | Update product field value")
             print("=]  status ID               | Change product status (Active / passive)")
             print("=]  get GTIN VALUE          | Get product data. If value is empty show all")
-            print("=]  price GTIN VALUE        | Add price history")
-            print("=]  history GTIN            | Show price history")
             print("=]  extra ID                | Add additional info")
+            print("=]  price add GTIN VALUE    | Add price history")
+            print("=]  price history GTIN      | Show price history")
             print("=]")
             conn.close()
             sys.exit()
         cmd = sys.argv[1]
         if cmd == "create":
-            create_product(conn, 0, "")
+            gtin =""
+            gtin_type =""
+            brand =""
+            name =""
+            if len(sys.argv) == 2:
+                gtin = input("=] Gtin: ")
+                gtin_type = input("=] Gtin type: ")
+                brand = input("=] Brand: ")
+                name = input("=] Name: ")
+            if len(sys.argv) > 2:
+                gtin = sys.argv[2]
+                if len(sys.argv) > 3:
+                    gtin_type = sys.argv[3]
+            create_product(conn, gtin, gtin_type, brand, name)
         elif cmd == "products":
             headers, rows = get_table(conn, "products", 1)
-            skip_cols = ["status", "created", "updated", "additionalinfo","info","note","madein"]
+            skip_cols = ["status", "created", "additionalinfo"]
             indices = [i for i, h in enumerate(headers) if h not in skip_cols]
             filtered_headers = [headers[i] for i in indices]
             filtered_rows = []
@@ -361,17 +392,26 @@ if __name__ == "__main__":
             print_table(filtered_headers, filtered_rows)
         elif cmd == "get":
             if len(sys.argv) == 3:
-                results = get_product(conn, sys.argv[2], "")
+                results = get_product(conn, sys.argv[2])
             elif len(sys.argv) == 4:
                 results = get_product(conn, sys.argv[2], sys.argv[3])
         elif cmd == "update":
-            update_product_field(conn, sys.argv[2], sys.argv[3], sys.argv[4])
+            gtin = sys.argv[2]
+            field = sys.argv[3]
+            value = sys.argv[4]
+            update_product(conn, gtin, **{field: value})
         elif cmd == "status":
             status_product(conn, sys.argv[2])
         elif cmd == "price":
-            add_price(conn, sys.argv[2], sys.argv[3])
-        elif cmd == "history":
-            price_history(conn, sys.argv[2])
+            if len(sys.argv) < 3:
+                print("=] Options: ADD or HISTORY")
+            else:
+                if sys.argv[2] == "add":
+                    add_price(conn, sys.argv[3], sys.argv[4])
+                elif sys.argv[2] == "history":
+
+                    headers, rows =  price_history(conn, sys.argv[3])
+                    print_table(headers, rows)
         elif cmd == "extra":
             add_additional(conn, sys.argv[2])
         elif cmd == "help":
@@ -384,7 +424,6 @@ if __name__ == "__main__":
                 print("=] info, note, madein, status, updated, additionalinfo")
                 print("=]")
         #TC
-        logger("stop")
         print()
         if len(results) > 0:
             print("Results:")
@@ -392,6 +431,7 @@ if __name__ == "__main__":
                 print(f"{key}: {value}")
             print()
         print("Logger:")
+        logger("Stop")
         for i in log:
             print(i)
         conn.close()
