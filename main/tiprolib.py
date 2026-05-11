@@ -1,7 +1,7 @@
 #|==============================================================|#
 # Made by IntSPstudio
 # Thank you for using this plugin!
-# Version: 0.0.1.110805
+# Version: 0.0.1.110511
 # ID: 980001022
 #|==============================================================|#
 
@@ -17,8 +17,7 @@ from os import get_terminal_size as cli_size #For ' if __name__ == "__main__" '
 #SETTINGS
 log =[]
 results ={}
-
-#
+#TABLE RULES
 ALLOWED_TABLES = [
     "products", 
     "price_history"
@@ -36,10 +35,8 @@ ALLOWED_FIELDS = {
         "madein", "additionalinfo", "status", "category"
     }
 }
-
 ALLOWED_FIELDS_PRODUCTS = ALLOWED_FIELDS["products"]
-
-#START THINGS
+#START THINGS 1
 def create_database(conn):
     cursor = conn.cursor()
     cursor.execute("""
@@ -75,6 +72,7 @@ def create_database(conn):
     )
     """)
     conn.commit()
+#START THINGS 2
 def initialize(db_path="products.db"):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -101,6 +99,7 @@ def boring_text(input, mode):
         return str("").join(i for i in input if i.isalnum())
     elif mode == 1:
         return re.sub(r"[^a-zA-Z0-9_-.,!# ]", "", input)
+
 #SEPARATE VALUES AND UNITS
 def parse_qty_input(value):
     match = re.match(r"^\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)\s*$", value)
@@ -109,6 +108,7 @@ def parse_qty_input(value):
     qty = float(match.group(1).replace(",", "."))
     unit = match.group(2).lower()
     return qty, unit
+
 #DEFAULT COMMAND LINE TABLE PRINT
 def print_table(headers, rows):
     output =[]
@@ -120,6 +120,7 @@ def print_table(headers, rows):
         line = line.replace("None", "    ")
         output.append(line)
     return output
+
 #IF GTIN = EMPTY -> GENERETED CODE
 def generate_internal_gtin(conn):
     cursor = conn.cursor()
@@ -128,6 +129,7 @@ def generate_internal_gtin(conn):
         cursor.execute("SELECT gtin FROM products WHERE gtin=?", (code,))
         if not cursor.fetchone():
             return code
+
 #GET TABLE
 def get_table(conn, name, mode):
     cursor = conn.cursor()
@@ -142,6 +144,7 @@ def get_table(conn, name, mode):
         return {"error":"No data"}
     output = {"title": headers, "content": rows}
     return output
+
 #CREATE PRODUCT
 def create_product(input: dict):
     now = currentdatetime()
@@ -370,10 +373,24 @@ def price_history(conn, gtin):
         rows = cursor.fetchall()
         return headers, rows
     else:
-        logger("No gtin code")
+        return {"error":"No GTIN code"}
 
-#ADD JSON DATA TO PRODUCT DATABASE
-def add_additional(conn, pid):
+#ADD OR GET JSON DATA TO PRODUCT DATABASE
+def mod_additional(conn, pid: int, mode: int, input: dict | None = None):
+    """
+    mode:
+        1 = GET
+        2 = MODIFY / MERGE
+        3 = REPLACE
+    """
+    # VALIDATE INPUT
+    values = {}
+    if input:
+        for field, value in input.items():
+            output = boring_text(field, 0)
+            if output:
+                values[output] = value
+    # GET CURRENT DATA
     cursor = conn.cursor()
     cursor.execute(
         "SELECT additionalinfo FROM products WHERE id=?",
@@ -381,26 +398,56 @@ def add_additional(conn, pid):
     )
     row = cursor.fetchone()
     if not row:
-        logger("Product not found")
-        return
-    data = json.loads(row[0])
-    key = input("Field name: ")
-    value = input("Value: ")
-    data[key] = value
-    cursor.execute("""
-    UPDATE products
-    SET additionalinfo=?
-    WHERE id=?
-    """, (json.dumps(data), pid))
+        return {"error": "Product not found"}
+    # LOAD EXISTING JSON
+    current = {}
+    if row[0]:
+        try:
+            current = json.loads(row[0])
+        except json.JSONDecodeError:
+            return {"error": "Invalid JSON in database"}
+    # MODE 1 = GET
+    if mode == 1:
+        # if input contains keys -> return only requested keys
+        if values:
+            return {
+                key: current.get(key)
+                for key in values.keys()
+            }
+        return current
+    # MODE 2 = MODIFY / MERGE
+    elif mode == 2:
+        current.update(values)
+        data = current
+    # MODE 3 = REPLACE
+    elif mode == 3:
+        data = values
+    else:
+        return {"error": "Invalid mode"}
+    # SAVE
+    cursor.execute(
+        """
+        UPDATE products
+        SET additionalinfo=?
+        WHERE id=?
+        """,
+        (
+            json.dumps(data, ensure_ascii=False),
+            pid
+        )
+    )
     conn.commit()
-    output = "Additional info updated to ID:" + str(pid)
-    logger(output)
+    return {
+        "info": f"Additional info updated to ID: {pid}",
+        "data": data
+    }
 
 #!
 #if this is used only like plugin, these will not be needed from now on \/
 #!
+
 #CLI PRINT WITH SCREEN LIMIT
-def printer(text):
+def printer(text: str):
     text = "=] " + str(text)
     try:
         limit = cli_size().columns -1 #SCREEN SIZE
@@ -410,8 +457,13 @@ def printer(text):
             print(text)
     except Exception as e:
         print(f"Error printing object: {e}")
+
 #CREATE PRODUCT WIZARD
-def create_product_wiz():
+def create_product_wiz(mode =0):
+    # 0 = Products, 1 = JSON
+    table ={}
+    if mode == 0:
+        table = ALLOWED_FIELDS_PRODUCTS
     #START
     loop =1
     continuity =1
@@ -425,13 +477,14 @@ def create_product_wiz():
             if str.lower(raw_input) == "exit" or str.lower(raw_input) == "quit":
                 continuity =0
             elif str.lower(raw_input) == "info" or str.lower(raw_input) == "help":
-                a ="=]"
-                c =0
-                d =""
-                for b in ALLOWED_FIELDS["products"]:
-                    c +=1
-                    a = a +" "+str(c)+". "+ str(b)
-                print(a)
+                if table:
+                    a ="=]"
+                    c =0
+                    d =""
+                    for b in table:
+                        c +=1
+                        a = a +" "+str(c)+". "+ str(b)
+                    print(a)
             else:
                 parts = raw_input.split("=", 1)
                 if len(parts) != 2:
@@ -482,7 +535,7 @@ if __name__ == "__main__":
             printer("update GTIN FIELD VALUE | Update product field value")
             printer("status ID               | Change product status (Active / passive)")
             printer("get GTIN VALUE          | Get product data. If value is empty show all")
-            printer("extra ID                | Add additional info")
+            printer("extra                   | Get or Add additional info")
             printer("price add GTIN VALUE    | Add price history")
             printer("price history GTIN      | Show price history")
             printer("")
@@ -523,10 +576,23 @@ if __name__ == "__main__":
                 if sys.argv[2] == "add":
                     add_price(conn, sys.argv[3], sys.argv[4])
                 elif sys.argv[2] == "history":
-
                     headers, rows =  price_history(conn, sys.argv[3])
                     results = print_table(headers, rows)
-        #elif cmd == "extra":
+        elif cmd == "extra":
+            if len(sys.argv) == 2:
+                printer("")
+                printer("              *** OPTIONS ***")
+                printer("")
+                printer("GET, MOD")
+                printer("")
+            if len(sys.argv) > 3:
+                arg1 = sys.argv[2]
+                arg2 = sys.argv[3]
+                if arg1 == "get":
+                    results = mod_additional(conn, arg2, 1, "")
+                if arg1 == "mod":
+                    output = create_product_wiz(1)
+                    results = mod_additional(conn, arg2, 2, output)
         #    add_additional(conn, sys.argv[2])
         elif cmd == "help":
             if sys.argv[2] == "get" or sys.argv[2] == "update":
