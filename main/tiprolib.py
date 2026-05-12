@@ -1,7 +1,7 @@
 #|==============================================================|#
 # Made by IntSPstudio
 # Thank you for using this plugin!
-# Version: 0.0.1.110512
+# Version: 0.0.1.110512b
 # ID: 980001022
 #|==============================================================|#
 
@@ -14,9 +14,6 @@ from datetime import datetime
 import sys  #For ' if __name__ == "__main__" '
 from os import get_terminal_size as cli_size #For ' if __name__ == "__main__" '
 
-#SETTINGS
-log =[]
-results ={}
 #TABLE RULES
 ALLOWED_TABLES = [
     "products", 
@@ -30,12 +27,13 @@ FIELD_ALIAS = {
 }
 ALLOWED_FIELDS = {
     "products" : {
-        "gtin", "gtin_type", "code", "brand", "manufacturer", "name",
+        "id", "gtin", "gtin_type", "code", "brand", "manufacturer", "name",
         "qty_value", "qty_default", "qty_unit", "info", "note",
         "madein", "additionalinfo", "status", "category"
     }
 }
 ALLOWED_FIELDS_PRODUCTS = ALLOWED_FIELDS["products"]
+
 #START THINGS 1
 def create_database(conn):
     cursor = conn.cursor()
@@ -89,10 +87,6 @@ def currentdatetime(mode =0):
     if mode == 1:
         now = str(datetime.now().strftime("%Y.%m.%d %H:%M:%S"))
     return now
-
-#SYSTEM LOGGER
-def logger(msg):
-    log.append(f"{currentdatetime()} ; {msg}")
 
 #REMOVE SPECIAL CHARAGTERS
 def boring_text(input, mode: int):
@@ -229,11 +223,12 @@ def update_product(conn, gtin: str, **fields):
     now = currentdatetime()
     updates = []
     values = []
+    errors = []
     #MORE RULES
     for field, value in fields.items():
         field = FIELD_ALIAS.get(field, field)
         if field not in ALLOWED_FIELDS_PRODUCTS:
-            logger(f"Error: field not allowed -> {field}")
+            errors.append(f"Error: field not allowed -> {field}")
             continue
         updates.append(f"{field}=?")
         values.append(value)
@@ -248,7 +243,7 @@ def update_product(conn, gtin: str, **fields):
     with conn:
         cursor.execute(sql, values)
     output = "Updated product "+ str(gtin)
-    return {"info":output}
+    return {"info": output, "errors": errors}
 
 #CHANGE PRODUCT STATUS (ACTIVE / PASSIVE)
 def status_product(conn, pid: int):
@@ -263,7 +258,7 @@ def status_product(conn, pid: int):
         return {"error": "Product not found"}
     row = boring_text(row)
     output = "Old status:"+ row
-    logger(output)
+    #log
     if row == "active":
         row = "passive"
     else:
@@ -282,8 +277,7 @@ def get_product(conn, gtin: str, field: str =""):
     cursor.execute("SELECT * FROM products WHERE gtin=?", (gtin,))
     row = cursor.fetchone()
     if not row:
-        logger("Product not found")
-        return None
+        return {"error":"Product not found"}
     #GET ALL DATA
     if field == "":
         #additional = json.loads(row["additionalinfo"] or "{}")
@@ -294,7 +288,7 @@ def get_product(conn, gtin: str, field: str =""):
     else:
         field = FIELD_ALIAS.get(field, field)
         if field not in ALLOWED_FIELDS_PRODUCTS:
-            output = "Field not allowed: "+ str(field)
+            output = "Field not allowed -> "+ str(field)
             return {"error":output}
         #DATA
         product = dict(row)
@@ -431,6 +425,13 @@ def mod_additional(conn, pid: int, mode: int, input: dict | None = None):
 #!
 #if this is used only like plugin, these will not be needed from now on \/
 #!
+#SETTINGS
+log =[]
+results ={}
+
+#SYSTEM LOGGER
+def logger(msg):
+    log.append(f"{currentdatetime()} ; {msg}")
 
 #CLI PRINT WITH SCREEN LIMIT
 def printer(text: str):
