@@ -1,7 +1,7 @@
 #|==============================================================|#
 # Made by IntSPstudio
 # Thank you for using this plugin!
-# Version: 0.0.1.110512d
+# Version: 0.0.1.110515
 # ID: 980001022
 #|==============================================================|#
 
@@ -95,12 +95,27 @@ def boring_text(input, mode: int):
         return re.sub(r"[^a-zA-Z0-9_-.,!# ]", "", input)
 
 #SEPARATE VALUES AND UNITS
-def parse_qty_input(value):
-    match = re.match(r"^\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)\s*$", value)
+def parse_vaun_input(value):
+    match = re.match(r"^\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Z€$]+)?\s*$", value)
     if not match:
-        raise ValueError(f"Invalid qty format: {value}")
+        raise ValueError(f"Invalid format: {value}")
     qty = float(match.group(1).replace(",", "."))
-    unit = match.group(2).lower()
+    unit = match.group(2)
+    #RULES
+    if unit:
+        unit = unit.lower()
+        #CURRENCY
+        if unit in {"€", "eur", "euro"}:
+            unit = "eur"
+        elif unit in {"$", "usd", "dollar"}:
+            unit = "usd"
+        #MORE RULES
+        elif unit in {"g", "kg", "ml", "l"}:
+            pass
+        else:
+            raise ValueError(f"Unknown unit/currency: {unit}")
+    else:
+        unit = None
     return qty, unit
 
 #IF GTIN = EMPTY -> GENERETED CODE
@@ -117,7 +132,7 @@ def get_table(conn, name: str, mode: int = 0):
     cursor = conn.cursor()
     if name not in ALLOWED_TABLES:
         return {"error": "Invalid table"}
-    cursor.execute(f"SELECT * FROM {name}")
+    cursor.execute(f"SELECT * FROM {name} WHERE status='active'")
     rows = cursor.fetchall()
     if not rows:
         return {"error": "No data"}
@@ -193,7 +208,7 @@ def create_product(conn, input: dict):
     if isinstance(raw_qty, str):
         if not data.get("qty_unit"):
             if not raw_qty.isnumeric():
-                qty_value, unit_symbol = parse_qty_input(raw_qty)
+                qty_value, unit_symbol = parse_vaun_input(raw_qty)
                 data["qty_value"] = qty_value
                 data["qty_unit"] = unit_symbol
     #SEND
@@ -274,28 +289,31 @@ def update_product(conn, gtin: str, **fields):
 
 #CHANGE PRODUCT STATUS (ACTIVE / PASSIVE)
 def status_product(conn, pid: int):
+    output =[]
     cursor = conn.cursor()
     cursor.execute(
         "SELECT status FROM products WHERE id=?",
         (pid,)
     )
-    now = currentdatetime()
     row = cursor.fetchone()
     if not row:
         return {"error": "Product not found"}
-    row = boring_text(row)
-    output = "Old status:"+ row
+    row = boring_text(row,0)
+    output.append("Old status:"+ row)
     #log
     if row == "active":
         row = "passive"
     else:
         row = "active"
+    #
+    now = currentdatetime()
+    #
     with conn:
         cursor.execute(
             "UPDATE products SET status=?, updated=? WHERE id=?",
             (row, now, pid)
         )
-    output = "New status:"+ row
+    output.append("New status:"+ row)
     return {"info": output}
 
 #GET PRODUCT DATA
@@ -327,22 +345,21 @@ def get_product(conn, gtin: str, field: str =""):
                 return output
             
 #ADD NEW PRICE TO PRODUCT PRICE HISTORY
-def add_price(conn, gtin: str, price, currency ="EUR", place =None):
+def add_price(conn, gtin: str, value, place =None):
     cursor = conn.cursor()
     gtin = gtin.replace(" ","")
     if gtin !="":
         try:
+            price, currency = parse_vaun_input(value)
             price = float(str(price).replace(",", "."))
             cursor.execute(
                 "SELECT id FROM products WHERE gtin=?",
                 (gtin,)
             )
             row = cursor.fetchone()
-            
             if not row:
                 return {"error":"Product not found"}
             product_id = int(row[0])
-
             with conn:
                 cursor.execute("""
                 INSERT INTO price_history
@@ -380,7 +397,8 @@ def price_history(conn, gtin: str):
         #MODIFY
         headers = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
-        return headers, rows
+        output = {"title": headers, "content": rows}
+        return output
     else:
         return {"error":"No GTIN code"}
 
@@ -552,8 +570,8 @@ if __name__ == "__main__":
     results ={}
     conn = initialize()
     dbcheck = create_database(conn)
-    #TB
     try:
+        #INDEX
         if len(sys.argv) < 2:
             printer("")
             printer("            *** Welcome! Available commands ***")
@@ -570,10 +588,12 @@ if __name__ == "__main__":
             conn.close()
             sys.exit()
         cmd = sys.argv[1]
+        #CREATE PRODUCT WITH WIZARD
         if cmd == "create":
             if len(sys.argv) == 2:
                 output = create_product_wiz()
                 results = create_product(conn, output)
+        #GET ALL PRODUCTS WITH STATUS = ACTIVE
         elif cmd == "products":
             results = get_table(conn, "products", 1)
             headers = results["title"]
@@ -584,7 +604,7 @@ if __name__ == "__main__":
                 "additionalinfo",
                 "updated"
             ]
-            #FILTER HEADERS
+            #FILTER CONTENT
             filtered_headers = [
                 h for h in headers
                 if h not in skip_cols
@@ -595,31 +615,35 @@ if __name__ == "__main__":
                     row.get(header, "")
                     for header in filtered_headers
                 ])
-            results = print_table(
-                filtered_headers,
-                filtered_rows
-            )
+            results = print_table(filtered_headers, filtered_rows)
+        #GET ONE PRODUCT
         elif cmd == "get":
             if len(sys.argv) == 3:
                 results = get_product(conn, sys.argv[2])
             elif len(sys.argv) == 4:
                 results = get_product(conn, sys.argv[2], sys.argv[3])
+        #UPDATE PRODUCT FIELD
         elif cmd == "update":
             gtin = sys.argv[2]
             field = sys.argv[3]
             value = sys.argv[4]
             update_product(conn, gtin, **{field: value})
+        #CHANGE STATUS
         elif cmd == "status":
-            status_product(conn, sys.argv[2])
+            results = status_product(conn, sys.argv[2])
+        #ADD OR GET PRICE HISTORY
         elif cmd == "price":
             if len(sys.argv) < 3:
                 printer("=] Options: ADD or HISTORY")
             else:
                 if sys.argv[2] == "add":
-                    add_price(conn, sys.argv[3], sys.argv[4])
+                    results = add_price(conn, sys.argv[3], sys.argv[4])
                 elif sys.argv[2] == "history":
-                    headers, rows =  price_history(conn, sys.argv[3])
+                    results =  price_history(conn, sys.argv[3])
+                    headers = results["title"]
+                    rows = results["content"]
                     results = print_table(headers, rows)
+        #PRODUCT ADDITIONAL JSON DATA
         elif cmd == "extra":
             if len(sys.argv) == 2:
                 printer("")
@@ -635,7 +659,7 @@ if __name__ == "__main__":
                 if arg1 == "mod":
                     output = create_product_wiz(1)
                     results = mod_additional(conn, arg2, 2, output)
-        #
+        #HELP FUNC
         elif cmd == "help":
             if sys.argv[2] == "get" or sys.argv[2] == "update":
                 printer("")
@@ -645,7 +669,7 @@ if __name__ == "__main__":
                 printer("qty_value (or qty), qty_default (or qtyd), qty_unit (or qtu)")
                 printer("info, note, madein, status, updated, additionalinfo")
                 printer("")
-        #TC
+        #RESULTS
         print()
         if results:
             printer("Results:")
