@@ -5,10 +5,10 @@
 #|==============================================================|#
 
 #SETTINGS
-from utils.timeutils import currentdatetime
+from config import CLI_SC
+import os
 
-#CREATE PRODUCT
-def create_product(conn, input: dict):
-    now = currentdatetime()
-    events =[]
-    data ={}
+#CLEAR SCREEN
+def cli_screen_clear():
+    if CLI_SC == True:
+        os.system('cls' if os.name == 'nt' else 'clear')

@@ -13,6 +13,7 @@ SQLITE_PATH = "products.db"
 
 DATABASES = {
     "sqlite": {
+        "user": "user",
         "path": SQLITE_PATH
     },
 
@@ -25,4 +26,5 @@ DATABASES = {
 }
 
 #|FEATURES|=====================================================|#
+CLI_SC = False
 DEBUG = True
