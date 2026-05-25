@@ -10,11 +10,11 @@
 
     TABLES:               | INFO:
     product_identifiers   | 
-    products_data         | 
+    product_data          | 
     product_inventory     | 
     quantity_history      | 
     price_history         |
-    categorys             |
+    categories            |
     organizations         |
     locations             |
 """

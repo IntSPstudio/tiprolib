@@ -14,7 +14,7 @@ def create_database(conn):
     #SQLITE
     if DATABASE_TYPE == "sqlite":
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS products_data (
+        CREATE TABLE IF NOT EXISTS product_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             brand_id INTEGER,
             name TEXT,

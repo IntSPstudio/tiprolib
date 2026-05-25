@@ -6,13 +6,13 @@
 
 #RULES
 ALLOWED_TABLES = [
-    "products",
-    "identifiers",
-    "inventory",
+    "product_data",
+    "product_identifiers",
+    "product_inventory",
     "price_history",
+    "quantity_history",
     "organizations",
-    "inventory",
-    "categorys",
+    "categories",
     "locations"
 ]
 
