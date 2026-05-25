@@ -20,3 +20,8 @@ def generate_internal_code(conn):
         )
         if not cursor.fetchone():
             return code
+
+#GET OR CREATE
+def get_or_create_iden(conn, input: dict):
+    cursor = conn.cursor()
+    

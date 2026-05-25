@@ -6,10 +6,11 @@
 
 #SETTINGS
 from utils.printer import (printer)
+from core.settings import ALLOWED_FIELDS
 
 #MAIN
-def create_dictionary_wiz(mode: int =0):
-    table ={}
+def create_dictionary_wiz(help: str = None):
+    table = ALLOWED_FIELDS[help]
     #START
     loop =1
     continuity =1
@@ -61,4 +62,4 @@ def create_dictionary_wiz(mode: int =0):
             else:
                 loop =0
                 printer("Event cancelled")
-        return "Error"
+        return None

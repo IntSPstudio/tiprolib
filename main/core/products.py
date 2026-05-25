@@ -5,10 +5,8 @@
 #|==============================================================|#
 
 #SETTINGS
-from utils.timeutils import currentdatetime
 
 #CREATE PRODUCT
 def create_product(conn, input: dict):
-    now = currentdatetime()
     events =[]
     data ={}
