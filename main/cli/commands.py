@@ -64,9 +64,9 @@ def run_cli(conn):
                 #GET OR CREATE ORGANIZATIONS
                 if len(sys.argv) == 4 and sys.argv[2] == "create" and sys.argv[3]:
                     results = get_or_create_org(conn,sys.argv[3],"")
-        #
-        #RESULTS
-        #
-        printer("Results", results)
+                    printer("ID", results)
+                elif len(sys.argv) == 5 and sys.argv[2] == "create" and sys.argv[3] and sys.argv[4]:
+                    results = get_or_create_org(conn, sys.argv[3], sys.argv[4])
+                    printer("ID", results)
     except:
         printer("Error")

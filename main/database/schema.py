@@ -23,10 +23,12 @@ def create_database(conn):
             category_id INTEGER,
             info TEXT,
             note TEXT,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT,
-            extra TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            extra TEXT,
+            FOREIGN KEY(brand_id) REFERENCES organizations(id),
+            FOREIGN KEY(category_id) REFERENCES categories(id)
         )
         """)
         cursor.execute("""
@@ -34,11 +36,12 @@ def create_database(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER,
             identifier TEXT,
-            type TEXT,
+            identifier_type TEXT,
             info TEXT,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(product_id) REFERENCES products_data(id)
         )
         """)
         cursor.execute("""                
@@ -50,9 +53,12 @@ def create_database(conn):
             qty_unit TEXT,
             manufacturer_id INTEGER,
             extra TEXT,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(product_id) REFERENCES products_data(id),
+            FOREIGN KEY(identifier_id) REFERENCES product_identifiers(id),
+            FOREIGN KEY(manufacturer_id) REFERENCES organizations(id)
         )
         """)
         cursor.execute("""  
@@ -61,9 +67,11 @@ def create_database(conn):
             product_id INTEGER,
             identifier_id INTEGER,
             value INTEGER,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(product_id) REFERENCES products_data(id),
+            FOREIGN KEY(identifier_id) REFERENCES product_identifiers(id)
         )
         """)
         cursor.execute("""                
@@ -71,19 +79,19 @@ def create_database(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
             info TEXT,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """)
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS categorys (
+        CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
             info TEXT,
-            status_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """) 
         cursor.execute("""
@@ -92,19 +100,24 @@ def create_database(conn):
             product_id INTEGER,
             price REAL,
             currency TEXT,
-            place TEXT,
+            location_id INTEGER,
+            organization_id INTEGER,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            status_id INTEGER
+            status_id INTEGER DEFAULT 1,
+            FOREIGN KEY(product_id) REFERENCES products_data(id),
+            FOREIGN KEY(location_id) REFERENCES locations(id),
+            FOREIGN KEY(organization_id) REFERENCES organizations(id)
         )
         """)
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS locations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
-            organizations_id INTEGER,
-            status_id,
+            organization_id INTEGER,
+            status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated TEXT
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(organization_id) REFERENCES organizations(id)
         )
         """)
     #COMMON
