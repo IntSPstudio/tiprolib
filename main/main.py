@@ -1,6 +1,6 @@
 #|==============================================================|#
 # Made by IntSPstudio
-# TEDASY Product database
+# TIPROLIB PDB
 # Thank you for using this plugin!
 # Version: 0.0.0.0
 # ID: 980001023
