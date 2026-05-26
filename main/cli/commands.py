@@ -6,9 +6,11 @@
 
 #SETTINGS
 import sys
-from utils.printer import printer
+from utils.printer import printer, print_crud_data
 from utils.prompt import cli_screen_clear
 from cli.dictionary import create_dictionary_wiz
+from core.crud import get_all
+from core.crud import get_by_id
 from core.products import create_product
 from core.organizations import get_or_create_org
 from core.locations import get_or_create_loc
@@ -48,8 +50,8 @@ def run_cli(conn):
                 #CREATE PRODUCT
                 if len(sys.argv) == 3 and sys.argv[2] == "create":
                     #CREATING CONTENT
-                    dict = create_dictionary_wiz("products")
-                    results = create_product(conn,dict)
+                    output = create_dictionary_wiz("products")
+                    results = create_product(conn,output)
         #
         # INVENTORY
         #
@@ -68,15 +70,19 @@ def run_cli(conn):
                 printer("/Organizations")
                 printer("            *** Welcome! Available commands ***")
                 printer("")
-                printer(" -Create NAME INFO")
+                printer(" - get all")
+                printer(" - create NAME INFO")
+                printer("")
             else:
+                #GET ALL
+                if len(sys.argv) == 4  and sys.argv[2] == "get" and sys.argv[3] == "all":
+                    output = get_all(conn, "organizations")
+                    results = print_crud_data(output)
                 #GET OR CREATE ORGANIZATIONS
-                if len(sys.argv) == 4 and sys.argv[2] == "create" and sys.argv[3]:
+                elif len(sys.argv) == 4 and sys.argv[2] == "create" and sys.argv[3]:
                     results = get_or_create_org(conn,sys.argv[3],"")
-                    printer("ID", results)
                 elif len(sys.argv) == 5 and sys.argv[2] == "create" and sys.argv[3] and sys.argv[4]:
                     results = get_or_create_org(conn, sys.argv[3], sys.argv[4])
-                    printer("ID", results)
         #
         # LOCATIONS
         #
@@ -94,4 +100,13 @@ def run_cli(conn):
         #
         # OUTPUT
         #
-        printer(f"Results: {results}")
+        if results:
+            printer("Results:")
+            if isinstance(results, list):
+                    for i in results:
+                        printer(i)
+            elif isinstance(results, dict):
+                for key, value in results.items():
+                    printer(f"{key}: {value}")
+            else:
+                printer(results)
