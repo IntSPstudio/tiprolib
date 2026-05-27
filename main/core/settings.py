@@ -6,11 +6,12 @@
 
 #RULES
 ALLOWED_TABLES = [
-    "product_data",
-    "product_identifiers",
-    "product_inventory",
+    "products",
+    "identifiers",
+    "stock",
+    "stock_log",
+    "stock_slot",
     "price_history",
-    "quantity_history",
     "organizations",
     "categories",
     "locations"
@@ -28,6 +29,17 @@ FIELD_ALIAS = {
         "add": "street_addres",
         "gtin": "identifier",
         "code": "identifier"
+    },
+    "add_complete_product": {
+        "b": "brand_id",
+        "n": "name",
+        "qd": "qty_default",
+        "qu": "qty_unit",
+        "c": "category_id",
+        "i": "info",
+
+        "cn": "identifier",
+        "ct": "identifier_type"
     },
     "add_products": {
         "b": "brand_id",
@@ -74,7 +86,13 @@ ALLOWED_FIELDS = {
         "info",
         "status_id",
     },
-    "inventory": {
+    "identifier_types": {
+        "id",
+        "code",
+        "name",
+        "info"
+    },
+    "stock": {
         "id",
         "product_id",
         "identifier_id",
@@ -83,6 +101,24 @@ ALLOWED_FIELDS = {
         "manufactured_id",
         "extra",
         "status_id"
+    },
+    "stock_log": {
+        "id",
+        "product_id",
+        "identifier_id",
+        "value",
+        "status_id"
+    },
+    "stock_slot": {
+        "id",
+        "code",
+        "info",
+        "location_id"
+    },
+    "categories": {
+        "id",
+        "name",
+        "info"
     },
     "locations": {
         "id",
@@ -93,20 +129,9 @@ ALLOWED_FIELDS = {
         "city",
         "info"
     },
-    "quantity": {
+    "organizations": {
         "id",
-        "product_id",
-        "identifier_id",
-        "value",
-        "status_id"
-    },
-    "create_product": {
-        "identifier",
-        "type",
-        "brand",
         "name",
-        "qty_default",
-        "qty_unit",
         "info"
     }
 }

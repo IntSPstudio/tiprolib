@@ -14,7 +14,7 @@ def create_database(conn):
     #SQLITE
     if DATABASE_TYPE == "sqlite":
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS product_data (
+        CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             brand_id INTEGER,
             name TEXT,
@@ -32,20 +32,30 @@ def create_database(conn):
         )
         """)
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS product_identifiers (
+        CREATE TABLE IF NOT EXISTS identifiers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER,
-            identifier TEXT,
-            identifier_type TEXT,
+            value TEXT,
+            type_id INTEGER,
             info TEXT,
             status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(product_id) REFERENCES products_data(id)
+            FOREIGN KEY(product_id) REFERENCES products(id)
         )
         """)
-        cursor.execute("""                
-        CREATE TABLE IF NOT EXISTS product_inventory (
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS identifier_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE,
+            name TEXT,
+            info TEXT,
+            created DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS stock (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER,
             identifier_id INTEGER,
@@ -53,16 +63,18 @@ def create_database(conn):
             qty_unit TEXT,
             manufacturer_id INTEGER,
             extra TEXT,
+            slot_id INTEGER,
             status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(product_id) REFERENCES products_data(id),
-            FOREIGN KEY(identifier_id) REFERENCES product_identifiers(id),
-            FOREIGN KEY(manufacturer_id) REFERENCES organizations(id)
+            FOREIGN KEY(product_id) REFERENCES products(id),
+            FOREIGN KEY(identifier_id) REFERENCES identifiers(id),
+            FOREIGN KEY(manufacturer_id) REFERENCES organizations(id),
+            FOREIGN KEY(slot_id) REFERENCES stock_slot(id)
         )
         """)
         cursor.execute("""  
-        CREATE TABLE IF NOT EXISTS quantity_history (
+        CREATE TABLE IF NOT EXISTS stock_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER,
             identifier_id INTEGER,
@@ -70,8 +82,20 @@ def create_database(conn):
             status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(product_id) REFERENCES products_data(id),
-            FOREIGN KEY(identifier_id) REFERENCES product_identifiers(id)
+            FOREIGN KEY(product_id) REFERENCES products(id),
+            FOREIGN KEY(identifier_id) REFERENCES identifiers(id)
+        )
+        """)
+        cursor.execute("""  
+        CREATE TABLE IF NOT EXISTS stock_slot (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE,
+            info TEXT,
+            location_id INTEGER,
+            status_id INTEGER DEFAULT 1,
+            created DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(location_id) REFERENCES locations(id)
         )
         """)
         cursor.execute("""                
@@ -79,6 +103,7 @@ def create_database(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
             info TEXT,
+            master_id INTEGER
             status_id INTEGER DEFAULT 1,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -104,7 +129,7 @@ def create_database(conn):
             organization_id INTEGER,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
             status_id INTEGER DEFAULT 1,
-            FOREIGN KEY(product_id) REFERENCES products_data(id),
+            FOREIGN KEY(product_id) REFERENCES products(id),
             FOREIGN KEY(location_id) REFERENCES locations(id),
             FOREIGN KEY(organization_id) REFERENCES organizations(id)
         )

@@ -12,7 +12,7 @@ from enums.status import Status
 from cli.dictionary import create_dictionary_wiz
 from core.crud import get_all
 from core.crud import update_status
-from core.products import create_product
+from core.products import get_or_create_complete_product
 from core.organizations import get_or_create_org
 from core.locations import get_or_create_loc
 
@@ -50,8 +50,8 @@ def run_cli(conn):
                 #CREATE PRODUCT
                 if len(sys.argv) == 3 and sys.argv[2] == "create":
                     #CREATING CONTENT
-                    output = create_dictionary_wiz("add_products")
-                    results = create_product(conn,output)
+                    output = create_dictionary_wiz("add_complete_product")
+                    results = get_or_create_complete_product(conn,output)
         #
         # INVENTORY
         #

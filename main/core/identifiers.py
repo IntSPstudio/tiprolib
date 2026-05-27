@@ -5,6 +5,7 @@
 #|==============================================================|#
 
 #SETTINGS
+import sqlite3
 from random import randint
 from database.adapter import PLACEHOLDER
 
@@ -39,3 +40,25 @@ def get_by_identifier(conn, identifier: str):
     cursor.execute(query, (identifier,))
     row = cursor.fetchone()
     return {"results":row}
+
+#GET OR CREATE IDENTIFIER TYPE
+def get_or_create_type(conn, type_input: str):
+    cursor = conn.cursor()
+    #RULES
+    code = str(type_input).strip().lower()
+    if not code:
+        return {"error": "Identifier code is required"}
+    #CHECK
+    cursor.execute(f"SELECT id FROM identifier_types WHERE code = {PLACEHOLDER}", (code,))
+    row = cursor.fetchone()
+    #IF EXISTS
+    if row:
+        return {"id": row[0], "status": "exists"}
+    #CREATE
+    try:
+        cursor.execute(f"INSERT INTO identifier_types (code) VALUES ({PLACEHOLDER})", (code,))
+        conn.commit()
+        return {"id": cursor.lastrowid, "status": "created"}
+    #ERROR
+    except sqlite3.Error as e:
+        return {"error": str(e)}

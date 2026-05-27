@@ -10,12 +10,14 @@
     |========================== INFO ==========================|
 
     TABLES:               | INFO:
-    product_identifiers   | Gtin's, unique product id's, links
-    product_data          | Product data reference
-    product_inventory     | Stock inventory
-    quantity_history      | Counts the quantities of products in inventory
-    price_history         | Product price history
+    identifier_types      | UPC, EAN13, EAN8, ISBN etc
+    identifiers           | Gtin's, unique product id's, links 
+    products              | Product data reference
     categories            | Product categories
+    stock                 | Stock inventory
+    stock_log             | Counts the quantities of products in stock inventory
+    stock_slot            | Stock inventory locations
+    price_history         | Product price history
     organizations         | All the organizations, brands or manufactures etc
     locations             | Location of organizations
 
