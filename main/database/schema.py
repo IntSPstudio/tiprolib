@@ -20,6 +20,7 @@ def create_database(conn):
             name TEXT,
             qty_default REAL,
             qty_unit TEXT,
+            weight_default REAL,
             category_id INTEGER,
             info TEXT,
             note TEXT,
@@ -47,7 +48,7 @@ def create_database(conn):
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS identifier_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code TEXT UNIQUE,
+            value TEXT UNIQUE,
             name TEXT,
             info TEXT,
             created DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -61,6 +62,7 @@ def create_database(conn):
             identifier_id INTEGER,
             qty_value REAL,
             qty_unit TEXT,
+            weight REAL,
             manufacturer_id INTEGER,
             extra TEXT,
             slot_id INTEGER,
@@ -74,7 +76,7 @@ def create_database(conn):
         )
         """)
         cursor.execute("""  
-        CREATE TABLE IF NOT EXISTS stock_log (
+        CREATE TABLE IF NOT EXISTS stock_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER,
             identifier_id INTEGER,
@@ -87,7 +89,7 @@ def create_database(conn):
         )
         """)
         cursor.execute("""  
-        CREATE TABLE IF NOT EXISTS stock_slot (
+        CREATE TABLE IF NOT EXISTS stock_slots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE,
             info TEXT,

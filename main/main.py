@@ -15,8 +15,8 @@
     products              | Product data reference
     categories            | Product categories
     stock                 | Stock inventory
-    stock_log             | Counts the quantities of products in stock inventory
-    stock_slot            | Stock inventory locations
+    stock_logs            | Counts the quantities of products in stock inventory
+    stock_slots           | Stock inventory locations
     price_history         | Product price history
     organizations         | All the organizations, brands or manufactures etc
     locations             | Location of organizations

@@ -29,6 +29,7 @@ def create_dictionary_wiz(help: str = None):
             elif str.lower(raw_input) == "info" or str.lower(raw_input) == "help":
                 if table:
                     printer("    Options:")
+                    #NOT WORKING WHIT PRODUCTS YET
                     for key, value in table.items():
                         printer(f"    {key}: {value}")
             else:

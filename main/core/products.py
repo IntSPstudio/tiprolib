@@ -22,3 +22,5 @@ def get_or_create_complete_product(conn, input_dict: dict):
     #VALIDATE + MAP INPUT
     for field in ALLOWED_FIELDS_PRD:
         data.setdefault(field, None)
+
+    #NOW WHAT

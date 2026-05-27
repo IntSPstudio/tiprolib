@@ -31,15 +31,56 @@ FIELD_ALIAS = {
         "code": "identifier"
     },
     "add_complete_product": {
-        "b": "brand_id",
-        "n": "name",
-        "qd": "qty_default",
-        "qu": "qty_unit",
-        "c": "category_id",
-        "i": "info",
-
-        "cn": "identifier",
-        "ct": "identifier_type"
+        "b": {
+            "table":"products",
+            "name": "brand_id",
+            "help": "Name or ID"
+        },
+        "n": {
+            "table":"products",
+            "name": "name",
+            "help": ""
+        },
+        "qty": {
+            "table":"products",
+            "name": "qty_default",
+            "help": "Default quantity value with or without unit"
+        },
+        "qd": {
+            "table":"products",
+            "name": "qty_default",
+            "help": "Default quantity value with or without unit"
+        },
+        "qu": {
+            "table":"products",
+            "name": "qty_unit",
+            "help": "Default quantity unit"
+        },
+        "c": {
+            "table":"products",
+            "name": "category_id",
+            "help": "Name or ID"
+        },
+        "i": {
+            "table":"products",
+            "name": "info",
+            "help": "Additional info"
+        },
+        "cn": {
+            "table":"identifiers",
+            "name": "value",
+            "help": "Identifier code value"
+        },
+        "ct": {
+            "table":"identifiers",
+            "name": "type_id",
+            "help": "Identifier code type"
+        },
+        "ci": {
+            "table":"identifiers",
+            "name": "info",
+            "help": "Additional info"
+        }
     },
     "add_products": {
         "b": "brand_id",
@@ -73,6 +114,7 @@ ALLOWED_FIELDS = {
         "name",
         "qty_default",
         "qty_unit",
+        "weight_default",
         "info",
         "note",
         "extra",
@@ -98,18 +140,19 @@ ALLOWED_FIELDS = {
         "identifier_id",
         "qty_value",
         "qty_unit",
+        "weight",
         "manufactured_id",
         "extra",
         "status_id"
     },
-    "stock_log": {
+    "stock_logs": {
         "id",
         "product_id",
         "identifier_id",
         "value",
         "status_id"
     },
-    "stock_slot": {
+    "stock_slots": {
         "id",
         "code",
         "info",

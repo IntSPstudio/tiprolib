@@ -13,6 +13,7 @@ from cli.dictionary import create_dictionary_wiz
 from core.crud import get_all
 from core.crud import update_status
 from core.products import get_or_create_complete_product
+from core.categories import get_or_create_cat
 from core.organizations import get_or_create_org
 from core.locations import get_or_create_loc
 
@@ -52,6 +53,27 @@ def run_cli(conn):
                     #CREATING CONTENT
                     output = create_dictionary_wiz("add_complete_product")
                     results = get_or_create_complete_product(conn,output)
+        #
+        # CATEGORIES
+        #
+        if master == "categories" or master == "categorie" or master == "cat":
+            if len(sys.argv) < 3:
+                printer("")
+                printer("/Categories")
+                printer("            *** Welcome! Available commands ***")
+                printer("")
+                printer(" - create NAME INFO")
+                printer("")
+            else:
+                #GET ALL
+                if len(sys.argv) == 4  and sys.argv[2] == "get" and sys.argv[3] == "all":
+                    output = get_all(conn, "categories")
+                    results = print_crud_data(output)
+                #GET OR CREATE ORGANIZATIONS
+                elif len(sys.argv) == 4 and sys.argv[2] == "create" and sys.argv[3]:
+                    results = get_or_create_cat(conn,sys.argv[3],"")
+                elif len(sys.argv) == 5 and sys.argv[2] == "create" and sys.argv[3] and sys.argv[4]:
+                    results = get_or_create_cat(conn, sys.argv[3], sys.argv[4])
         #
         # INVENTORY
         #
