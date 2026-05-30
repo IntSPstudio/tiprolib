@@ -14,7 +14,7 @@ from database.adapter import PLACEHOLDER
 from utils.parsers import parse_qty_input
 
 #GET OR CREATE COMPLETE PRODUCT WITH DICTIONARY
-def get_or_create_complete_product(conn, input_dict: dict):
+def get_or_create_complete_product(conn, input_dict: dict, cre_ide: int = 0):
     cursor = conn.cursor()
     events = []
     data = normal_product_data(input_dict, events)
@@ -54,21 +54,21 @@ def get_or_create_complete_product(conn, input_dict: dict):
     if data.get("weight_default") and isinstance(data.get("weight_default"), str):
         weight = parse_qty_input(data["weight_default"])
         data["weight_default"] = weight["value"]
-        data["weight_unit"] = data.get("weight_unit") or weight["unit"] or "kg"
-
-
+        data["weight_unit"] = data.get("weight_unit") or weight["unit"] or "g"
+    #NAME CHECK
     if not data.get("name"):
         data["name"] = f"Product {identifier_data['value']}"
         events.append("Product name generated from identifier")
-
-    if not identifier_data.get("value"):
-        identifier_data["value"] = generate_internal_code(conn)
-        identifier_data["type_id"] = resolve_identifier_type(conn, "internal", events)
-        events.append(f"Generated internal identifier: {identifier_data['value']}")
-    elif not identifier_data.get("type_id"):
-        identifier_data["type_id"] = guess_identifier_type(conn, identifier_data["value"], events)
-    else:
-        identifier_data["type_id"] = resolve_identifier_type(conn, identifier_data["type_id"], events)
+    #INTERNAL IDENTIFIER CHECK
+    if cre_ide == 0:
+        if not identifier_data.get("value"):
+            identifier_data["value"] = generate_internal_code(conn)
+            identifier_data["type_id"] = resolve_identifier_type(conn, "internal", events)
+            events.append(f"Generated internal identifier: {identifier_data['value']}")
+        elif not identifier_data.get("type_id"):
+            identifier_data["type_id"] = guess_identifier_type(conn, identifier_data["value"], events)
+        else:
+            identifier_data["type_id"] = resolve_identifier_type(conn, identifier_data["type_id"], events)
 
     product_id = get_existing_product(cursor, data)
     if not product_id:
@@ -86,8 +86,9 @@ def get_or_create_complete_product(conn, input_dict: dict):
         )
         events.append("Existing identifier linked to product")
     else:
-        identifier_id = insert_identifier(cursor, product_id, identifier_data)
-        events.append("Identifier created")
+        if cre_ide == 0:
+            identifier_id = insert_identifier(cursor, product_id, identifier_data)
+            events.append("Identifier created")
 
     conn.commit()
     return {
@@ -229,6 +230,7 @@ def normal_product_data(input_dict, events):
         data[field] = value.strip() if isinstance(value, str) else value
     data.pop("id", None)
     data.pop("status_id", None)
+
     return data
 
 def normal_identifier_data(input_dict, events):
@@ -243,6 +245,7 @@ def normal_identifier_data(input_dict, events):
             data["info"] = value
     if data["value"] == "":
         data["value"] = None
+
     return data
 
 def map_field(field):
@@ -314,11 +317,12 @@ def insert_product(cursor, data):
     for key, value in data.items():
         if value is None:
             continue
-        if key == "extra" and isinstance(value, dict):
-            value = json.dumps(value, ensure_ascii=False)
+        #if key == "extra" and isinstance(value, dict):
+        #    value = json.dumps(value, ensure_ascii=False)
         clean_data[key] = value
     columns = ", ".join(clean_data.keys())
     placeholders = ", ".join([PLACEHOLDER] * len(clean_data))
+
     cursor.execute(
         f"INSERT INTO products ({columns}) VALUES ({placeholders})",
         tuple(clean_data.values()),

@@ -25,7 +25,7 @@ def seed_defaults(conn):
     insert_default(cursor, "organizations", 1, {"name": "default", "info": "Default organization"})
     insert_default(cursor, "organizations", 2, {"name": "undefined", "info": "Undefined organization"})
     insert_default(cursor, "organizations", 3, {"name": "cash_customer", "info": "Default cash customer"})
-    #WEBSITE USERS
+    #WEBSITE USERS 1
     insert_default(cursor, "web_users", 1, {
         "username": "korhonen",
         "display_name": "Korhonen",
@@ -33,14 +33,14 @@ def seed_defaults(conn):
         "role": "admin",
         "must_change_password": 1,
     })
-    insert_default(cursor, "web_users", 1, {
+    #WEBSITE USERS 2
+    insert_default(cursor, "web_users", 2, {
         "username": "virtanen",
         "display_name": "Virtanen",
         "password_hash": "",
         "role": "admin",
         "must_change_password": 1,
     })
-
     #IDENTIFIERS
     for type_id, value, name in [
         (1, "internal", "Internal code"),
@@ -52,6 +52,9 @@ def seed_defaults(conn):
         (7, "sn", "Serial number"),
     ]:
         insert_default(cursor, "identifier_types", type_id, {"value": value, "name": name})
+    #DEPBOSIT (Aka. Pantti)
+    insert_default(cursor, "deposit_types", 1, {"code": "none","name": "No deposit","amount": "0","currency": "eur"})
+    #SEND IT
     conn.commit()
 
 #INSERT HELPER
@@ -140,7 +143,7 @@ def create_sqlite(cursor):
         qty_default REAL DEFAULT 1,
         qty_unit TEXT DEFAULT 'pcs',
         weight_default REAL,
-        weight_unit TEXT DEFAULT 'kg',
+        weight_unit TEXT DEFAULT 'g',
         category_id INTEGER,
         deposit_type_id INTEGER DEFAULT 1,
         info TEXT,
@@ -329,3 +332,10 @@ def create_sqlite(cursor):
         updated DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+#PRAGMA RULES
+def ensure_sqlite_column(cursor, table, column, definition):
+    cursor.execute(f"PRAGMA table_info({table})")
+    columns = [row[1] for row in cursor.fetchall()]
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")

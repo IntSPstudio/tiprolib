@@ -17,7 +17,7 @@ def generate_internal_code(conn):
             randint(1000000000, 9999999999)
         )
         cursor.execute(
-            f"SELECT identifiers FROM product_identifiers WHERE identifiers={PLACEHOLDER}",
+            f"SELECT value FROM identifiers WHERE value={PLACEHOLDER}",
             (code,)
         )
         if not cursor.fetchone():

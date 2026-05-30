@@ -47,7 +47,7 @@ FIELD_ALIAS = {
         "n": {
             "table":"products",
             "name": "name",
-            "help": ""
+            "help": "Name is required"
         },
         "qty": {
             "table":"products",
@@ -63,6 +63,11 @@ FIELD_ALIAS = {
             "table":"products",
             "name": "qty_unit",
             "help": "Default quantity unit"
+        },
+        "w": {
+            "table": "products",
+            "name": "weight_default",
+            "help": "Expected product weight in grams"
         },
         "c": {
             "table":"products",
