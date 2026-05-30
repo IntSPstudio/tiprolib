@@ -32,6 +32,7 @@ def run_cli(conn):
         printer(" -Products")
         printer(" -Inventory")
         printer(" -Organizations")
+        printer(" -Locations")
         printer("")
     #OPTIONS
     else:
